@@ -92,8 +92,11 @@ export default {
       if (this.sortKey !== key) return ''
       return this.sortDir === 'asc' ? ' ▲' : ' ▼'
     },
-    formatDate(d) {
+    formatDate(d, precision) {
       if (!d) return ''
+      // Wikibase precision: 9 = year, 10 = month, 11 = day
+      if (precision === 9) return d.slice(0, 4)
+      if (precision === 10) return d.slice(0, 7)
       return d.slice(0, 10)
     },
     qid(uri) {
@@ -162,7 +165,7 @@ export default {
     </thead>
     <tbody>
       <tr v-for="it in sorted" :key="it.item">
-        <td class="col-date">{{ formatDate(it.date) }}</td>
+        <td class="col-date">{{ formatDate(it.date, it.datePrecision) }}</td>
         <td class="col-type">
           <span class="type-pill" :class="`t-${typeShort(it.type)}`">{{ it.typeLabel }}</span>
         </td>

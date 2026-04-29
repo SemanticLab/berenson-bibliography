@@ -51,7 +51,7 @@ The `P91` statement may carry a `P141` qualifier ("object named as") giving the 
 The canonical 102-row list of bibliography items.
 
 ```sparql
-SELECT DISTINCT ?item ?itemLabel ?date (YEAR(?date) AS ?year) ?type ?typeLabel
+SELECT DISTINCT ?item ?itemLabel ?date ?datePrecision (YEAR(?date) AS ?year) ?type ?typeLabel
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?type .
@@ -59,10 +59,15 @@ WHERE {
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
   VALUES ?berenson { wd:Q27449 wd:Q27450 wd:Q27534 }
-  ?item wdt:P98 ?date .
+  ?item p:P98 ?dateStmt .
+  ?dateStmt ps:P98 ?date .
+  ?dateStmt psv:P98 ?dateNode .
+  ?dateNode wikibase:timePrecision ?datePrecision .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
 ```
+
+`?datePrecision` is Wikibase's integer time precision: `9` = year, `10` = month, `11` = day. The UI uses this to suppress the `-01` day or `-01-01` month-day when the source data isn't that specific (e.g. a date entered only as "September 1897" returns `1897-09-01T00:00:00Z` with precision `10` and renders as `1897-09`).
 
 ### Query 2 — attributions / pseudonyms
 

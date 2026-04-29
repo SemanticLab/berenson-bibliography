@@ -5,7 +5,7 @@ const AUTHOR_VALUES = '{ wd:Q27449 wd:Q27450 wd:Q27534 }'
 const TYPE_VALUES = '{ wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }'
 
 export const LIST_QUERY = `
-SELECT DISTINCT ?item ?itemLabel ?date (YEAR(?date) AS ?year) ?type ?typeLabel
+SELECT DISTINCT ?item ?itemLabel ?date ?datePrecision (YEAR(?date) AS ?year) ?type ?typeLabel
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?type .
@@ -13,7 +13,10 @@ WHERE {
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
   VALUES ?berenson ${AUTHOR_VALUES}
-  ?item wdt:P98 ?date .
+  ?item p:P98 ?dateStmt .
+  ?dateStmt ps:P98 ?date .
+  ?dateStmt psv:P98 ?dateNode .
+  ?dateNode wikibase:timePrecision ?datePrecision .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
 `
@@ -73,6 +76,7 @@ export async function fetchBibliography() {
       item: uri,
       title: v(r, 'itemLabel'),
       date: v(r, 'date'),
+      datePrecision: v(r, 'datePrecision') ? parseInt(v(r, 'datePrecision'), 10) : 11,
       year: v(r, 'year') ? parseInt(v(r, 'year'), 10) : null,
       type: v(r, 'type'),
       typeLabel: v(r, 'typeLabel'),
