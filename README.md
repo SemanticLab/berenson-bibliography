@@ -2,7 +2,7 @@
 
 A browseable interface to early publications by Bernard and Mary Berenson, sourced from the [Semantic Lab](https://base.semlab.io) Wikibase via SPARQL.
 
-Live: <https://thisismattmiller.github.io/berenson-bibliography/>
+Live: <https://semanticlab.github.io/berenson-bibliography/>
 
 ## Data
 
