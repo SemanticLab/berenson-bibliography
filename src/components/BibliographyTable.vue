@@ -40,7 +40,7 @@ export default {
         if (q) {
           const hay = [
             it.title || '',
-            ...it.attributions.map((a) => `${a.berensonLabel} ${a.authorname || ''}`),
+            ...it.attributions.map((a) => `${a.berensonLabel} ${a.authorname || ''} ${a.unsigned ? 'unsigned' : ''}`),
             ...it.reviewed.map((r) => `${r.label} ${r.authors.map((a) => a.label).join(' ')}`),
           ]
             .join(' ')
@@ -108,7 +108,7 @@ export default {
       const seen = new Set()
       const out = []
       for (const a of attributions) {
-        const key = a.authorname || `${a.berenson}-noauthor`
+        const key = `${a.berenson}|${a.unsigned ? '__unsigned__' : a.authorname || ''}`
         if (seen.has(key)) continue
         seen.add(key)
         out.push(a)
@@ -122,11 +122,12 @@ export default {
 <template>
   <div class="controls">
     <label>
-      Berenson:
+      Author:
       <select v-model="filterBerenson">
         <option value="all">all</option>
-        <option value="http://base.semlab.io/entity/Q27450">Bernard</option>
-        <option value="http://base.semlab.io/entity/Q27449">Mary</option>
+        <option value="http://base.semlab.io/entity/Q27450">Bernard Berenson</option>
+        <option value="http://base.semlab.io/entity/Q27449">Mary Berenson</option>
+        <option value="http://base.semlab.io/entity/Q27534">Logan Pearsall Smith</option>
       </select>
     </label>
 
@@ -172,7 +173,8 @@ export default {
           <ul v-if="it.attributions.length">
             <li v-for="(a, i) in uniqueAuthors(it.attributions)" :key="i">
               <strong>{{ a.berensonLabel }}</strong>
-              <span v-if="a.authorname"> as <em>{{ a.authorname }}</em></span>
+              <span v-if="a.unsigned"> as <em>unsigned</em></span>
+              <span v-else-if="a.authorname"> as <em>{{ a.authorname }}</em></span>
             </li>
           </ul>
         </td>

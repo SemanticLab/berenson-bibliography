@@ -1,6 +1,6 @@
-# Berenson Bibliography
+# Conoshing the Connoisseurs
 
-A browseable interface to early publications by Bernard and Mary Berenson, sourced from the [Semantic Lab](https://base.semlab.io) Wikibase via SPARQL.
+A browseable bibliography of early publications (1890–1903) by Bernard Berenson, Mary Berenson, and Logan Pearsall Smith, sourced from the [Semantic Lab](https://base.semlab.io) Wikibase via SPARQL.
 
 Live: <https://semanticlab.github.io/berenson-bibliography/>
 
@@ -36,14 +36,15 @@ The interface fetches all three queries in parallel and merges them client-side 
 | `Q28958` | letter to the editor |
 | `Q28960` | review |
 
-### Berenson attribution
+### Author scope
 
-Entries are filtered to those attributed (via `P91`) to either:
+Entries are filtered to those attributed (via `P91`) to one of:
 
 - `Q27450` — Bernard Berenson
 - `Q27449` — Mary Berenson
+- `Q27534` — Logan Pearsall Smith (Mary's brother; co-contributor on the *Golden Urn* journals)
 
-The `P91` statement may carry a `P141` qualifier giving the name as it appeared in print (e.g. *Mary Logan*, *Bernhard Berenson*, *M. L.*).
+The `P91` statement may carry a `P141` qualifier ("object named as") giving the name as it appeared in print (e.g. *Mary Logan*, *Bernhard Berenson*, *M. L.*). When `P141` is set to the special **"no value"** (which the SPARQL endpoint returns as the literal string `"novalue"`), the work was published unsigned and the UI displays it as `Mary Berenson as unsigned`.
 
 ### Query 1 — list
 
@@ -57,7 +58,7 @@ WHERE {
   VALUES ?type { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson { wd:Q27449 wd:Q27450 wd:Q27534 }
   ?item wdt:P98 ?date .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
@@ -68,18 +69,22 @@ WHERE {
 Multi-row: one row per `(item, berenson, pseudonym)` triple. An item can yield multiple rows when both Berensons are credited, or when the same Berenson appears under multiple pseudonyms.
 
 ```sparql
-SELECT DISTINCT ?item ?berenson ?berensonLabel ?authorname
+PREFIX wdno: <http://base.semlab.io/prop/novalue/>
+SELECT DISTINCT ?item ?berenson ?berensonLabel ?authorname ?unsigned
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?pubtype .
   VALUES ?pubtype { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson { wd:Q27449 wd:Q27450 wd:Q27534 }
   OPTIONAL { ?statementberenson pq:P141 ?authorname }
+  BIND(EXISTS { ?statementberenson a wdno:P141 } AS ?unsigned)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
 ```
+
+The `BIND(EXISTS …)` clause flags statements where the `P141` qualifier is explicitly set to **"no value"** (Wikibase's "unsigned" marker). The OPTIONAL still binds `?authorname` for statements with a string pseudonym; statements with neither produce a row with neither variable bound.
 
 ### Query 3 — reviewed works + their authors
 
@@ -93,7 +98,7 @@ WHERE {
   VALUES ?pubtype { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson { wd:Q27449 wd:Q27450 wd:Q27534 }
   ?item wdt:P272 ?reviewedItem .
   OPTIONAL { ?reviewedItem wdt:P91 ?reviewedAuthor . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
@@ -130,7 +135,7 @@ After all three queries return, the JS in [`src/sparql.js`](src/sparql.js) merge
 }
 ```
 
-Pseudonym rows where `?authorname` resolves to the literal string `"novalue"` (Wikibase's no-value sentinel) are dropped during merge.
+Rows where `?unsigned` is `true` (or, for legacy compatibility, where `?authorname` resolves to the literal string `"novalue"`) are merged as `{ unsigned: true }` and rendered as e.g. *Mary Berenson as unsigned* rather than carrying a pseudonym string.
 
 ## Develop
 

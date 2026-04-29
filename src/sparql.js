@@ -1,42 +1,48 @@
 const ENDPOINT = 'https://query.semlab.io/proxy/wdqs/bigdata/namespace/wdq/sparql'
 
-const LIST_QUERY = `
+// Bernard Berenson (Q27450), Mary Berenson (Q27449), Logan Pearsall Smith (Q27534)
+const AUTHOR_VALUES = '{ wd:Q27449 wd:Q27450 wd:Q27534 }'
+const TYPE_VALUES = '{ wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }'
+
+export const LIST_QUERY = `
 SELECT DISTINCT ?item ?itemLabel ?date (YEAR(?date) AS ?year) ?type ?typeLabel
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?type .
-  VALUES ?type { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
+  VALUES ?type ${TYPE_VALUES}
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson ${AUTHOR_VALUES}
   ?item wdt:P98 ?date .
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
 `
 
-const AUTHORS_QUERY = `
-SELECT DISTINCT ?item ?berenson ?berensonLabel ?authorname
+export const AUTHORS_QUERY = `
+PREFIX wdno: <http://base.semlab.io/prop/novalue/>
+SELECT DISTINCT ?item ?berenson ?berensonLabel ?authorname ?unsigned
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?pubtype .
-  VALUES ?pubtype { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
+  VALUES ?pubtype ${TYPE_VALUES}
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson ${AUTHOR_VALUES}
   OPTIONAL { ?statementberenson pq:P141 ?authorname }
+  BIND(EXISTS { ?statementberenson a wdno:P141 } AS ?unsigned)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
 }
 `
 
-const REVIEWED_QUERY = `
+export const REVIEWED_QUERY = `
 SELECT DISTINCT ?item ?reviewedItem ?reviewedItemLabel ?reviewedAuthor ?reviewedAuthorLabel
 WHERE {
   ?item wdt:P11 wd:Q28959 .
   ?item wdt:P1 ?pubtype .
-  VALUES ?pubtype { wd:Q20639 wd:Q20638 wd:Q20637 wd:Q28958 wd:Q28960 }
+  VALUES ?pubtype ${TYPE_VALUES}
   ?item p:P91 ?statementberenson .
   ?statementberenson ps:P91 ?berenson .
-  VALUES ?berenson { wd:Q27449 wd:Q27450 }
+  VALUES ?berenson ${AUTHOR_VALUES}
   ?item wdt:P272 ?reviewedItem .
   OPTIONAL { ?reviewedItem wdt:P91 ?reviewedAuthor . }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en" . }
@@ -82,12 +88,16 @@ export async function fetchBibliography() {
     if (!it) continue
     const berenson = v(r, 'berenson')
     const berensonLabel = v(r, 'berensonLabel')
-    const authorname = v(r, 'authorname')
-    if (authorname === 'novalue') continue
-    const dedupeKey = `${uri}|${berenson}|${authorname || ''}`
+    const rawAuthorname = v(r, 'authorname')
+    // Wikibase "no value" qualifier shows up two ways across this dataset:
+    //   - the BIND(EXISTS …) returns boolean "true" (the canonical signal)
+    //   - some statements also emit the literal string "novalue" as the value
+    const isUnsigned = v(r, 'unsigned') === 'true' || rawAuthorname === 'novalue'
+    const authorname = isUnsigned ? null : rawAuthorname
+    const dedupeKey = `${uri}|${berenson}|${isUnsigned ? '__unsigned__' : authorname || ''}`
     if (seenAttr.has(dedupeKey)) continue
     seenAttr.add(dedupeKey)
-    it.attributions.push({ berenson, berensonLabel, authorname })
+    it.attributions.push({ berenson, berensonLabel, authorname, unsigned: isUnsigned })
   }
 
   const seenReviewed = new Map()

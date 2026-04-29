@@ -1,9 +1,12 @@
 <script>
-import { fetchBibliography } from './sparql.js'
+import { fetchBibliography, LIST_QUERY, AUTHORS_QUERY, REVIEWED_QUERY } from './sparql.js'
 import BibliographyTable from './components/BibliographyTable.vue'
 
-const SOURCE_QUERY_URL =
-  'https://query.semlab.io/#SELECT%20DISTINCT%20%3Fitem%20%3FitemLabel%20%3Fdate%20%28YEAR%28%3Fdate%29%20AS%20%3Fyear%29%20%3Ftype%20%3FtypeLabel%0AWHERE%20%7B%0A%20%20%3Fitem%20wdt%3AP11%20wd%3AQ28959%20.%0A%20%20%3Fitem%20wdt%3AP1%20%3Ftype%20.%0A%20%20VALUES%20%3Ftype%20%7B%20wd%3AQ20639%20wd%3AQ20638%20wd%3AQ20637%20wd%3AQ28958%20wd%3AQ28960%20%7D%0A%20%20%3Fitem%20p%3AP91%20%3Fstatementberenson%20.%0A%20%20%3Fstatementberenson%20ps%3AP91%20%3Fberenson%20.%0A%20%20VALUES%20%3Fberenson%20%7B%20wd%3AQ27449%20wd%3AQ27450%20%7D%0A%20%20%3Fitem%20wdt%3AP98%20%3Fdate%20.%0A%20%20SERVICE%20wikibase%3Alabel%20%7B%20bd%3AserviceParam%20wikibase%3Alanguage%20%22en%22%20.%20%7D%0A%7D'
+const QUERY_RUNNER_BASE = 'https://query.semlab.io/#'
+
+function runnerUrl(q) {
+  return QUERY_RUNNER_BASE + encodeURIComponent(q.trim())
+}
 
 export default {
   name: 'App',
@@ -14,7 +17,12 @@ export default {
       loading: true,
       error: null,
       search: '',
-      sourceQueryUrl: SOURCE_QUERY_URL,
+      logoUrl: `${import.meta.env.BASE_URL}logo.png`,
+      sourceQueries: [
+        { label: 'List query', url: runnerUrl(LIST_QUERY) },
+        { label: 'Authors / pseudonyms query', url: runnerUrl(AUTHORS_QUERY) },
+        { label: 'Reviewed works query', url: runnerUrl(REVIEWED_QUERY) },
+      ],
     }
   },
   async mounted() {
@@ -31,30 +39,52 @@ export default {
 
 <template>
   <header class="hero">
-    <h1>Berenson Bibliography</h1>
+    <div class="title-row">
+      <img :src="logoUrl" alt="" class="logo" />
+      <h1>
+        Conoshing the Connoisseurs
+        <span class="subtitle">The Early Writings of Bernard and Mary Berenson</span>
+      </h1>
+    </div>
+
     <div class="intro">
       <p>
-        The Berenson Bibliography <sup>[1]</sup> is a list of early publications by
-        <em>Bernard Berenson</em> and <em>Mary Berenson</em>, including books, articles,
-        reviews, letters to the editor, and journal contributions. Each entry records the
-        Berenson it is attributed to, any pseudonym used at the time of publication
-        (e.g. <em>Mary Logan</em>, <em>Bernhard Berenson</em>), and—for reviews—the
-        original work being reviewed and its author. Driven by SPARQL queries against the
-        <a href="https://base.semlab.io" target="_blank" rel="noopener">Semantic Lab</a>
-        Wikibase, this interface merges three queries client-side so multi-author and
-        multi-reviewed-work entries are preserved as structured lists rather than
-        flattened strings.
+        <em>Conoshing the Connoisseurs: The Early Writings of Bernard and Mary Berenson</em>
+        is a bibliography of early publications by Bernard Berenson and Mary Berenson.
+        The project lists books, articles, reviews, letters to the editor, and journals
+        published 1890–1903—a particularly fruitful and formative period in their
+        personal and intellectual lives. During this time, both were grappling with
+        questions of connoisseurship and the attribution of artworks, traveling on what
+        they called &ldquo;conoshing&rdquo; trips, and poring over photographs to
+        determine the authorship of Renaissance works of art. The historical lack of
+        recognition of Mary as a scholar may be partly due to gender bias, but also to a
+        lack of access to her works and information about them. <em>Conoshing the
+        Connoisseurs</em> thus aims to surface Mary&rsquo;s scholarship, demonstrate the
+        overlap and distinct contributions of the two scholars, and reveal their early
+        intellectual network and interests.
       </p>
-      <p class="footnote">
-        [1] Source data is maintained as linked open data; entries shown here are limited
-        to publication types <em>book</em>, <em>article</em>, <em>review</em>,
-        <em>letter to the editor</em>, and <em>academic journal</em> attributed to
-        Bernard or Mary Berenson.
+      <p>
+        Each entry records the Berenson who wrote it, the way the work was signed (or
+        not) at the time of publication (e.g.&nbsp;<em>Mary Logan</em>,
+        <em>Bernhard Berenson</em>), and—for reviews—the original work being reviewed
+        and its author. Driven by SPARQL queries against the
+        <a href="https://base.semlab.io/wiki/Main_Page" target="_blank" rel="noopener">Semantic Lab Wikibase</a>,
+        this interface merges three queries client-side so multi-author and
+        multi-reviewed-work entries are preserved as structured lists rather than
+        flattened strings. Source data is maintained as linked open data; entries shown
+        here are limited to publication types <em>book</em>, <em>article</em>,
+        <em>review</em>, <em>letter to the editor</em>, and <em>academic journal</em>
+        written by Bernard or Mary Berenson.
       </p>
     </div>
-    <p class="source-link">
-      <a :href="sourceQueryUrl" target="_blank" rel="noopener">Source query for data</a>
+
+    <p class="source-links">
+      Source queries:
+      <span v-for="(q, i) in sourceQueries" :key="q.label">
+        <a :href="q.url" target="_blank" rel="noopener">{{ q.label }}</a><span v-if="i < sourceQueries.length - 1">, </span>
+      </span>
     </p>
+
     <input
       v-model="search"
       type="search"
@@ -74,12 +104,31 @@ export default {
 .hero {
   margin-bottom: 1.5rem;
 }
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+.logo {
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+}
 h1 {
   font-weight: normal;
-  margin: 0 0 1rem;
-  font-size: 2.4rem;
+  margin: 0;
+  font-size: 2.1rem;
   color: #2a1c0a;
   letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+.subtitle {
+  display: block;
+  font-size: 1.05rem;
+  color: #6a3a14;
+  margin-top: 0.35rem;
+  font-style: italic;
 }
 .intro {
   background: #efece2;
@@ -94,13 +143,10 @@ h1 {
 .intro p + p {
   margin-top: 0.75rem;
 }
-.intro .footnote {
-  font-size: 0.8rem;
-  color: #6a6356;
-}
-.source-link {
-  margin: 0.6rem 0 1rem;
+.source-links {
+  margin: 0.75rem 0 1rem;
   font-size: 0.9rem;
+  color: #555;
 }
 .filter {
   width: 100%;
@@ -124,5 +170,17 @@ h1 {
 }
 .error {
   color: #a33;
+}
+
+@media (max-width: 600px) {
+  .title-row {
+    flex-direction: column;
+    text-align: center;
+    gap: 0.75rem;
+  }
+  .logo {
+    width: 90px;
+    height: 90px;
+  }
 }
 </style>
